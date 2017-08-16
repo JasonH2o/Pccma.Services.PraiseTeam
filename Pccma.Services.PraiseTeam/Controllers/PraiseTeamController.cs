@@ -1,13 +1,15 @@
 ﻿using System.Linq;
-using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Description;
 using System.Web.OData;
 using System.Web.OData.Routing;
 using Pccma.PraiseTeam.Database.Contracts;
 using Model = Pccma.PraiseTeam.Database.Model;
-using System.Collections.Generic;
 using System.Data.Entity;
+using AutoMapper;
+using AutoMapper.QueryableExtensions;
+using System.Linq.Expressions;
+using System;
 
 namespace Pccma.Services.PraiseTeam.Controllers
 {
@@ -15,11 +17,14 @@ namespace Pccma.Services.PraiseTeam.Controllers
     {
         protected readonly IPccmaPraiseTeamDataStoreContext _dataStoreContext;
 
+        protected readonly IMapper _mapper;
+
         private const string EMPTY_DELTA_ERROR = "No properties to change in delta";
 
-        public PraiseTeamController(IPccmaPraiseTeamDataStoreContext dataStoreContect)
+        public PraiseTeamController(IPccmaPraiseTeamDataStoreContext dataStoreContext, IMapper mapper)
         {
-            _dataStoreContext = dataStoreContect;
+            _dataStoreContext = dataStoreContext;
+            _mapper = mapper;
         }
 
         [HttpGet]
@@ -27,35 +32,15 @@ namespace Pccma.Services.PraiseTeam.Controllers
         [ResponseType(typeof(IQueryable<Dto.PraiseTeam>))]
         [EnableQuery]
         public IHttpActionResult GetPraiseTeam()
-        {            
-            var praiseTeams = _dataStoreContext.PraiseTeamRepository.Find().Include(x => x.PraiseTeamMembers);
-            var praiseTeamsDto = new List<Dto.PraiseTeam>();
-
-            if (praiseTeams != null && praiseTeams.Any())
+        {                        
+            var memberToExpand = new Expression<Func<Dto.PraiseTeam, object>>[]
             {
-                foreach (var praiseTeam in praiseTeams)
-                {
-                    Dto.PraiseTeam praiseTeamDto = new Dto.PraiseTeam()
-                    {
-                        Id = praiseTeam.Id,
-                        PraiseTeamName = praiseTeam.PraiseTeamName,
-                        TeamLeader = praiseTeam.TeamLeader                        
-                    };
-                    var memberList = new List<Dto.PraiseTeamMember>();
-                    foreach (var member in praiseTeam.PraiseTeamMembers)
-                    {
-                        var praiseTeamMember = new Dto.PraiseTeamMember()
-                        {
-                            Id = member.Id,
-                            PraiseTeamId = member.PraiseTeamId,
-                            MemberName = member.MemberName,
-                            Specialties = member.Specialties
-                        };
-                        memberList.Add(praiseTeamMember);
-                    }
-                    praiseTeamDto.PraiseTeamMembers = memberList;
-                    praiseTeamsDto.Add(praiseTeamDto);
-                }
+                    x => x.PraiseTeamMembers
+            };
+            var praiseTeamsDto = _dataStoreContext.PraiseTeamRepository.Find().ProjectTo(_mapper.ConfigurationProvider, memberToExpand);            
+
+            if (praiseTeamsDto != null && praiseTeamsDto.Any())
+            {
                 return Ok(praiseTeamsDto);
             }else
             {
@@ -69,11 +54,16 @@ namespace Pccma.Services.PraiseTeam.Controllers
         [EnableQuery]
         public IHttpActionResult GetPraiseTeam([FromODataUri] int Id)
         {
-            var praiseTeam = _dataStoreContext.PraiseTeamRepository.Find().FirstOrDefault(x => x.Id == Id);
-            
-            if(praiseTeam != null)
+            var memberToExpand = new Expression<Func<Dto.PraiseTeam, object>>[]
             {
-                var praiseTeamDto = new Dto.PraiseTeam { Id = praiseTeam.Id, PraiseTeamName = praiseTeam.PraiseTeamName, TeamLeader = praiseTeam.TeamLeader };
+                    x => x.PraiseTeamMembers
+            };
+            var praiseTeamDto = _dataStoreContext.PraiseTeamRepository.Find()
+                                .ProjectTo(_mapper.ConfigurationProvider, memberToExpand)
+                                .FirstOrDefault(x => x.Id == Id);
+
+            if (praiseTeamDto != null)
+            {                
                 return Ok(praiseTeamDto);
             }
 
@@ -90,13 +80,8 @@ namespace Pccma.Services.PraiseTeam.Controllers
             {
                 return InternalServerError();
             }
-            var praiseTeam = new Model.PraiseTeam()
-            {
-                Id = praiseTeamDto.Id,
-                PraiseTeamName = praiseTeamDto.PraiseTeamName,
-                TeamLeader = praiseTeamDto.TeamLeader,
-                PraiseTeamMembers = null
-            };
+
+            var praiseTeam = _mapper.Map<Model.PraiseTeam>(praiseTeamDto);
 
             var result = _dataStoreContext.PraiseTeamRepository.Add(praiseTeam);
 
@@ -126,13 +111,7 @@ namespace Pccma.Services.PraiseTeam.Controllers
 
             delta.Patch(praiseTeamDto);
 
-            var praiseTeam = new Model.PraiseTeam()
-            {
-                Id = praiseTeamDto.Id,
-                PraiseTeamName = praiseTeamDto.PraiseTeamName,
-                TeamLeader = praiseTeamDto.TeamLeader,
-                PraiseTeamMembers = null
-            };
+            var praiseTeam = _mapper.Map<Model.PraiseTeam>(praiseTeamDto);
 
             var result = _dataStoreContext.PraiseTeamRepository.Update(praiseTeam);
             if(result == null)
@@ -160,8 +139,7 @@ namespace Pccma.Services.PraiseTeam.Controllers
         {
             var existingPraiseTeam = _dataStoreContext.PraiseTeamRepository.Find().AsNoTracking().FirstOrDefault(x => x.Id == Id);
 
-            var praiseTeamDto = new Dto.PraiseTeam() { Id = existingPraiseTeam.Id, PraiseTeamMembers = null,
-                PraiseTeamName = existingPraiseTeam.PraiseTeamName, TeamLeader = existingPraiseTeam.TeamLeader };
+            var praiseTeamDto = _mapper.Map<Dto.PraiseTeam>(existingPraiseTeam);
 
             return praiseTeamDto;
         }

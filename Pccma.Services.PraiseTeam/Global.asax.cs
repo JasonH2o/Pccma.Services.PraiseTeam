@@ -18,6 +18,7 @@ namespace Pccma.Services.PraiseTeam
             base.OnApplicationStarted();
 
             GlobalConfiguration.Configure(WebApiConfig.Register);
+            AutoMapperConfig.RegisterMappingConfig();
         }
 
         /// <summary>
