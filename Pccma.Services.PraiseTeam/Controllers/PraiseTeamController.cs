@@ -31,7 +31,7 @@ namespace Pccma.Services.PraiseTeam.Controllers
         [ODataRoute(@"PraiseTeams")]
         [ResponseType(typeof(IQueryable<Dto.PraiseTeam>))]
         [EnableQuery]
-        public IHttpActionResult GetPraiseTeam()
+        public IHttpActionResult GetPraiseTeams()
         {                        
             var memberToExpand = new Expression<Func<Dto.PraiseTeam, object>>[]
             {
@@ -72,6 +72,8 @@ namespace Pccma.Services.PraiseTeam.Controllers
 
         [HttpPost]
         [ODataRoute(@"PraiseTeams")]
+        [ResponseType(typeof(IQueryable<Dto.PraiseTeam>))]
+        [EnableQuery]
         public IHttpActionResult CreatePraiseTeam(Dto.PraiseTeam praiseTeamDto)
         {
             //TODO: run validation for praiseTeamDto see if it's valid
@@ -80,14 +82,14 @@ namespace Pccma.Services.PraiseTeam.Controllers
             {
                 return InternalServerError();
             }
-
-            var praiseTeam = _mapper.Map<Model.PraiseTeam>(praiseTeamDto);
+            
+            var praiseTeam = _mapper.Map<Model.PraiseTeam>(praiseTeamDto);            
 
             var result = _dataStoreContext.PraiseTeamRepository.Add(praiseTeam);
 
             if(result != null)
             {
-                return Ok(result);
+                return Ok(_mapper.Map<Dto.PraiseTeam>(result));
             }
 
             return InternalServerError();
@@ -95,6 +97,8 @@ namespace Pccma.Services.PraiseTeam.Controllers
 
         [HttpPatch]
         [ODataRoute(@"PraiseTeams({Id})")]
+        [ResponseType(typeof(IQueryable<Dto.PraiseTeam>))]
+        [EnableQuery]
         public IHttpActionResult UpdatePraiseTeam(int Id, Delta<Dto.PraiseTeam> delta)
         {
             var praiseTeamDto = GetExistingPraiseTeam(Id);
@@ -103,8 +107,8 @@ namespace Pccma.Services.PraiseTeam.Controllers
             {
                 return NotFound();
             }
-
-            if (!delta.GetChangedPropertyNames().Any())
+          
+            if (delta == null || !delta.GetChangedPropertyNames().Any())
             {
                 return BadRequest(EMPTY_DELTA_ERROR);
             }
@@ -119,7 +123,7 @@ namespace Pccma.Services.PraiseTeam.Controllers
                 return InternalServerError();
             }
 
-            return Ok(result);
+            return Ok(_mapper.Map<Dto.PraiseTeam>(result));
         }
 
         [HttpDelete]
